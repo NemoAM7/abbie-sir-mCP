@@ -23,7 +23,7 @@ async def health_check() -> str:
     return f"Server is healthy at {datetime.now().isoformat()}"
 
 async def keep_alive():
-    """Background task that pings the health endpoint every 14 minutes to keep Render server alive."""
+    """Background task that pings the health endpoint every 5 minutes to keep Render server alive."""
     if not hasattr(config, 'RENDER_HEALTH_URL') or not config.RENDER_HEALTH_URL:
         print("⚠️  RENDER_HEALTH_URL not configured, skipping keep-alive pings")
         return
@@ -31,7 +31,7 @@ async def keep_alive():
     async with aiohttp.ClientSession() as session:
         while True:
             try:
-                await asyncio.sleep(14 * 60)  # Wait 14 minutes
+                await asyncio.sleep(5 * 60)  # Wait 5 minutes
                 async with session.get(config.RENDER_HEALTH_URL, timeout=30) as response:
                     if response.status == 200:
                         print(f"✅ Keep-alive ping successful at {datetime.now().isoformat()}")
