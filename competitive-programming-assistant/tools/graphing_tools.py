@@ -10,6 +10,7 @@ import matplotlib.ticker as mticker
 import seaborn as sns
 from pydantic import Field
 from mcp import ErrorData, McpError
+from mcp.types import TextContent, ImageContent
 
 import config
 from api_clients.codeforces import CodeforcesAPI
@@ -25,9 +26,12 @@ def _plot_to_base64() -> str:
     buf.seek(0)
     return base64.b64encode(buf.read()).decode('utf-8')
 
-def _create_image_response(text: str, image_base64: str) -> List[dict]:
-    """Creates the standard MCP response format for an image."""
-    return [{"type": "text", "text": text}, {"type": "image", "mimeType": "image/png", "data": image_base64}]
+def _create_image_response(text: str, image_base64: str) -> List[TextContent | ImageContent]:
+    """Creates the standard MCP response format for an image using proper MCP types."""
+    return [
+        TextContent(type="text", text=text), 
+        ImageContent(type="image", mimeType="image/png", data=image_base64)
+    ]
 
 
 # --- TOOL: Plot Rating Graph (Enhanced) ---
@@ -38,11 +42,18 @@ PlotRatingGraphDesc = RichToolDescription(
 )
 @mcp.tool(description=PlotRatingGraphDesc.model_dump_json())
 async def plot_rating_graph(
-    handles: Annotated[Optional[List[str]], Field(description="A list of Codeforces handles.")] = None
-) -> List[dict]:
-    target_handles = handles or [config.DEFAULT_HANDLE]
-    if not target_handles[0]:
-        raise McpError(ErrorData(code=400, message="Please specify at least one handle or set DEFAULT_HANDLE."))
+    handles: Annotated[Optional[List[str]], Field(description="A list of Codeforces handles.")] = None,
+    handle: Annotated[Optional[str], Field(description="A single Codeforces handle (alternative to handles).")] = None
+) -> List[TextContent | ImageContent]:
+    # Handle both singular and plural parameter names for compatibility
+    if handle and not handles:
+        target_handles = [handle]
+    elif handles:
+        target_handles = handles
+    elif config.DEFAULT_HANDLE:
+        target_handles = [config.DEFAULT_HANDLE]
+    else:
+        raise McpError(ErrorData(code=400, message="Please specify at least one handle (use 'handle' or 'handles' parameter)."))
 
     try:
         plt.style.use('seaborn-v0_8-darkgrid')
@@ -89,9 +100,9 @@ PlotHistogramDesc = RichToolDescription(
 @mcp.tool(description=PlotHistogramDesc.model_dump_json())
 async def plot_solved_rating_distribution(
     handle: Annotated[Optional[str], Field(description="The user's Codeforces handle. Defaults to your configured handle.")] = None,
-) -> List[dict]:
+) -> List[TextContent | ImageContent]:
     target_handle = handle or config.DEFAULT_HANDLE
-    if not target_handle:
+    if not target_handle or target_handle.strip() == "":
         raise McpError(ErrorData(code=400, message="Please specify a handle or set DEFAULT_HANDLE."))
     try:
         submissions = await CodeforcesAPI.get_user_status(target_handle, count=5000)
@@ -134,9 +145,9 @@ PlotVerdictsDesc = RichToolDescription(
 @mcp.tool(description=PlotVerdictsDesc.model_dump_json())
 async def plot_verdict_distribution(
     handle: Annotated[Optional[str], Field(description="The user's Codeforces handle. Defaults to your configured handle.")] = None
-) -> List[dict]:
+) -> List[TextContent | ImageContent]:
     target_handle = handle or config.DEFAULT_HANDLE
-    if not target_handle:
+    if not target_handle or target_handle.strip() == "":
         raise McpError(ErrorData(code=400, message="Please specify a handle or set DEFAULT_HANDLE."))
 
     try:
@@ -182,7 +193,7 @@ PlotTagsDesc = RichToolDescription(
 async def plot_tag_distribution(
     handle: Annotated[Optional[str], Field(description="The user's Codeforces handle. Defaults to your configured handle.")] = None,
     count: Annotated[int, Field(description="Number of top tags to show.")] = 15
-) -> List[dict]:
+) -> List[TextContent | ImageContent]:
     # Implementation omitted for brevity - copy from your original script
     return "Tag distribution plot logic goes here."
 
@@ -195,6 +206,6 @@ PlotLangsDesc = RichToolDescription(
 @mcp.tool(description=PlotLangsDesc.model_dump_json())
 async def plot_language_distribution(
     handle: Annotated[Optional[str], Field(description="The user's Codeforces handle. Defaults to your configured handle.")] = None
-) -> List[dict]:
+) -> List[TextContent | ImageContent]:
     # Implementation omitted for brevity - copy from your original script
     return "Language distribution plot logic goes here."

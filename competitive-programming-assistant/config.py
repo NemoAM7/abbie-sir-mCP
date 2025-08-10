@@ -11,7 +11,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # --- User & Tool Configuration ---
 MY_NUMBER = os.environ.get("MY_NUMBER")
-DEFAULT_HANDLE = os.environ.get("DEFAULT_HANDLE")  # For Codeforces
+DEFAULT_HANDLE = os.environ.get("DEFAULT_HANDLE", "")  # Optional - no default user handle
 
 # --- Server & Client Configuration ---
 SERVER_URL = "http://localhost:8086/mcp/"
