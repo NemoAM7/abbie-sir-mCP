@@ -184,6 +184,19 @@ mcp_tool_definitions = [
         }
     },
     {
+        "name": "plot_performance_graph",
+        "description": "Generates a graph showing a user's rating history along with their performance (rating change) in each contest.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "handle": {
+                    "type": "STRING",
+                    "description": "The user's Codeforces handle. Defaults to the configured handle."
+                }
+            }
+        }
+    },
+    {
         "name": "plot_solved_rating_distribution",
         "description": "Displays a graphical histogram (a bar chart) of solved problem ratings for a user.",
         "parameters": {

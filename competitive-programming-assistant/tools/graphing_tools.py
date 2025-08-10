@@ -91,6 +91,58 @@ async def plot_rating_graph(
         raise McpError(ErrorData(code=500, message=f"❌ Error plotting rating graph: {str(e)}"))
 
 
+# --- TOOL: Plot Performance Graph ---
+PlotPerformanceDesc = RichToolDescription(
+    description="Generates a graph showing a user's rating history along with their performance (rating change) in each contest.",
+    use_when="User asks for a 'performance graph', 'contest performance plot', or 'rating and performance history'.",
+    side_effects="Makes a network request to the Codeforces API and generates an image."
+)
+@mcp.tool(description=PlotPerformanceDesc.model_dump_json())
+async def plot_performance_graph(
+    handle: Annotated[Optional[str], Field(description="The user's Codeforces handle. Defaults to your configured handle.")] = None,
+) -> List[TextContent | ImageContent]:
+    target_handle = handle or config.DEFAULT_HANDLE
+    if not target_handle:
+        raise McpError(ErrorData(code=400, message="Please specify a handle or set DEFAULT_HANDLE."))
+
+    try:
+        rating_changes = await CodeforcesAPI.get_user_rating_changes(target_handle)
+        if not rating_changes:
+            raise McpError(ErrorData(code=404, message=f"😕 No rating changes found for **{target_handle}**. They might be unrated."))
+
+        rating_changes.sort(key=lambda x: x['ratingUpdateTimeSeconds'])
+
+        times = [datetime.fromtimestamp(rc['ratingUpdateTimeSeconds']) for rc in rating_changes]
+        ratings = [rc['newRating'] for rc in rating_changes]
+        deltas = [rc['newRating'] - rc['oldRating'] for rc in rating_changes]
+        colors = ['#2ca02c' if d >= 0 else '#d62728' for d in deltas]
+
+        plt.style.use('seaborn-v0_8-darkgrid')
+        fig, ax1 = plt.subplots(figsize=(12, 7))
+
+        ax1.plot(times, ratings, color='skyblue', marker='o', linestyle='-', label='Rating', zorder=2)
+        ax1.set_xlabel("Date", fontsize=12)
+        ax1.set_ylabel("Rating", color='skyblue', fontsize=12)
+        ax1.tick_params(axis='y', labelcolor='skyblue')
+        ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
+
+        ax2 = ax1.twinx()
+        ax2.bar(times, deltas, color=colors, alpha=0.6, width=15, label='Rating Change', zorder=1)
+        ax2.set_ylabel("Rating Change", color='gray', fontsize=12)
+        ax2.tick_params(axis='y', labelcolor='gray')
+        ax2.axhline(0, color='gray', linestyle='--', linewidth=1)
+
+        ax1.set_title(f"Rating and Performance History for {target_handle}", fontsize=16, fontweight='bold')
+        fig.autofmt_xdate()
+        plt.tight_layout()
+        
+        image_base64 = _plot_to_base64()
+        return _create_image_response(f"Here is the performance graph for {target_handle}:", image_base64)
+    except Exception as e:
+        plt.close()
+        raise McpError(ErrorData(code=500, message=f"❌ Error plotting performance graph: {str(e)}"))
+
+
 # --- TOOL: Plot Solved Rating Distribution ---
 PlotHistogramDesc = RichToolDescription(
     description="Displays a graphical histogram of solved problem ratings for a user.",
