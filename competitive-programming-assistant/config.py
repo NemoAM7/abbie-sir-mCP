@@ -18,6 +18,11 @@ SERVER_URL = "http://localhost:8086/mcp/"
 SERVER_HOST = "0.0.0.0"
 SERVER_PORT = 8086
 
+# --- Render Keep-Alive Configuration ---
+# Set this to your deployed Render URL + health endpoint for keep-alive pings
+# Example: "https://your-app-name.onrender.com/health"
+RENDER_HEALTH_URL = os.environ.get("RENDER_HEALTH_URL", "")
+
 # --- Assertions for Critical Variables ---
 assert TOKEN, "FATAL: Please set AUTH_TOKEN in your .env file"
 assert MY_NUMBER, "FATAL: Please set MY_NUMBER in your .env file"

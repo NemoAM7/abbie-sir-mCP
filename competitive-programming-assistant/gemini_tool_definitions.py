@@ -14,6 +14,16 @@ mcp_tool_definitions = [
             "properties": {},
         }
     },
+    
+    # --- Health Check Tool ---
+    {
+        "name": "health_check",
+        "description": "Health check endpoint to keep the server alive and prevent Render from sleeping.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {},
+        }
+    },
 
     # --- LeetCode Tools ---
     {
