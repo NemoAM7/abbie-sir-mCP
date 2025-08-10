@@ -1,0 +1,9 @@
+fastmcp
+pydantic
+python-dotenv
+httpx
+aiohttp
+matplotlib
+seaborn
+numpy
+ics
