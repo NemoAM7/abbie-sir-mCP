@@ -195,7 +195,7 @@ mcp_tool_definitions = [
     },
     {
         "name": "plot_performance_graph",
-        "description": "Generates a graph showing a user's rating history along with their performance (rating change) in each contest.",
+        "description": "Generates a graph of a user's contest-by-contest 'true performance' rating based on rating change calculations.",
         "parameters": {
             "type": "OBJECT",
             "properties": {

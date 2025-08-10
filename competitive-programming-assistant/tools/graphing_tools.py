@@ -93,8 +93,8 @@ async def plot_rating_graph(
 
 # --- TOOL: Plot Performance Graph ---
 PlotPerformanceDesc = RichToolDescription(
-    description="Generates a graph showing a user's rating history along with their performance (rating change) in each contest.",
-    use_when="User asks for a 'performance graph', 'contest performance plot', or 'rating and performance history'.",
+    description="Generates a graph of a user's contest-by-contest 'true performance' rating.",
+    use_when="User asks for a 'true performance graph', 'performance rating plot', or a plot based on rating change calculations.",
     side_effects="Makes a network request to the Codeforces API and generates an image."
 )
 @mcp.tool(description=PlotPerformanceDesc.model_dump_json())
@@ -110,34 +110,59 @@ async def plot_performance_graph(
         if not rating_changes:
             raise McpError(ErrorData(code=404, message=f"😕 No rating changes found for **{target_handle}**. They might be unrated."))
 
+        # Sort chronologically for plotting
         rating_changes.sort(key=lambda x: x['ratingUpdateTimeSeconds'])
 
-        times = [datetime.fromtimestamp(rc['ratingUpdateTimeSeconds']) for rc in rating_changes]
-        ratings = [rc['newRating'] for rc in rating_changes]
-        deltas = [rc['newRating'] - rc['oldRating'] for rc in rating_changes]
-        colors = ['#2ca02c' if d >= 0 else '#d62728' for d in deltas]
+        # --- Calculate the "True Performance" Rating for each contest ---
+        times = []
+        performance_ratings = []
+        for rc in rating_changes:
+            times.append(datetime.fromtimestamp(rc['ratingUpdateTimeSeconds']))
+            delta = rc['newRating'] - rc['oldRating']
+            # The formula you provided: performance = old_rating + (delta * 4)
+            performance = rc['oldRating'] + (delta * 4)
+            performance_ratings.append(performance)
+        
+        # Current rating for the legend
+        current_rating = rating_changes[-1]['newRating'] if rating_changes else 0
 
-        plt.style.use('seaborn-v0_8-darkgrid')
-        fig, ax1 = plt.subplots(figsize=(12, 7))
+        plt.style.use('ggplot') # Use a style similar to the image provided
+        fig, ax = plt.subplots(figsize=(12, 7))
 
-        ax1.plot(times, ratings, color='skyblue', marker='o', linestyle='-', label='Rating', zorder=2)
-        ax1.set_xlabel("Date", fontsize=12)
-        ax1.set_ylabel("Rating", color='skyblue', fontsize=12)
-        ax1.tick_params(axis='y', labelcolor='skyblue')
-        ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
+        # --- Add the colored background bands for ranks ---
+        rank_bands = [
+            (0, 1200, '#CCCCCC', 0.5),      # Newbie (Gray)
+            (1200, 1400, '#77FF77', 0.5),   # Pupil (Green)
+            (1400, 1600, '#77DDBB', 0.5),   # Specialist (Cyan)
+            (1600, 1900, '#AAAAFF', 0.5),   # Expert (Blue)
+            (1900, 2100, '#FF88FF', 0.5),   # Candidate Master (Violet)
+            (2100, 2300, '#FFCC88', 0.5),   # Master (Orange)
+        ]
+        # Get the max performance to extend the top band
+        max_perf = max(performance_ratings) if performance_ratings else 2300
+        
+        for low, high, color, alpha in rank_bands:
+            ax.axhspan(low, high, facecolor=color, alpha=alpha, zorder=0)
+        # Add a top band that goes up to the max performance rating
+        ax.axhspan(2300, max(2400, max_perf + 100), facecolor='#FFBB55', alpha=0.5, zorder=0)
 
-        ax2 = ax1.twinx()
-        ax2.bar(times, deltas, color=colors, alpha=0.6, width=15, label='Rating Change', zorder=1)
-        ax2.set_ylabel("Rating Change", color='gray', fontsize=12)
-        ax2.tick_params(axis='y', labelcolor='gray')
-        ax2.axhline(0, color='gray', linestyle='--', linewidth=1)
-
-        ax1.set_title(f"Rating and Performance History for {target_handle}", fontsize=16, fontweight='bold')
+        # Plot the performance line graph
+        ax.plot(times, performance_ratings, color='slateblue', marker='o', 
+                markersize=4, markerfacecolor='white', markeredgewidth=0.5,
+                linestyle='-', zorder=1, label=f'{target_handle} ({current_rating})')
+        
+        # Set titles and labels
+        ax.set_title(f"Codeforces Performance for {target_handle}", fontsize=16, fontweight='bold')
+        ax.set_xlabel("Date", fontsize=12)
+        ax.set_ylabel("Performance Rating", fontsize=12)
+        ax.legend(loc='upper left')
+        
         fig.autofmt_xdate()
         plt.tight_layout()
         
         image_base64 = _plot_to_base64()
         return _create_image_response(f"Here is the performance graph for {target_handle}:", image_base64)
+
     except Exception as e:
         plt.close()
         raise McpError(ErrorData(code=500, message=f"❌ Error plotting performance graph: {str(e)}"))
