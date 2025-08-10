@@ -6,6 +6,7 @@ from typing import Annotated, List, Optional
 
 from pydantic import Field
 from mcp import ErrorData, McpError
+import asyncio
 
 import config
 from api_clients.codeforces import CodeforcesAPI
