@@ -908,3 +908,12 @@ async def generate_comparison_card(
         
     except Exception as e:
         raise McpError(ErrorData(code=500, message=f"❌ Error generating comparison card: {str(e)}"))
+    
+
+
+@mcp.tool()
+async def about() -> dict:
+    return {
+        "name": mcp.name, 
+        "description": "This MCP server helps analyze Codeforces profiles, track performance, and discover practice problems tailored to your skill level. It provides comprehensive tools for competitive programming improvement with real-time API integration and visual data representation. Just ask 'What are my Codeforces stats, I am [username]?' or 'Recommend problems for 1400 rating' or 'Compare me with tourist, I am [username]' and get instant answers!"
+    }
