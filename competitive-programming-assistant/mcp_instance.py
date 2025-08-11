@@ -25,6 +25,6 @@ class SimpleBearerAuthProvider(BearerAuthProvider):
 
 # The single, central MCP instance for the entire application - following starter kit pattern
 mcp = FastMCP(
-    "Ultimate Competitive Programming Assistant v5.5",
+    "Competitive Programming Assistant :3",
     auth=SimpleBearerAuthProvider(config.TOKEN),
 )
