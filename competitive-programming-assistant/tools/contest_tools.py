@@ -10,9 +10,9 @@ from mcp_instance import mcp
 
 # --- TOOL: Get Upcoming Contests ---
 UpcomingContestsDesc = RichToolDescription(
-    description="Fetches a list of upcoming contests from specified competitive programming platforms.",
-    use_when="User asks for 'upcoming contests', 'running contests', 'contest list', or 'what's next on Codeforces'.",
-    side_effects="Makes a network request to the clist.by API."
+    description="Retrieves a comprehensive list of upcoming and running competitive programming contests from major platforms including Codeforces, LeetCode, CodeChef, AtCoder, TopCoder, and CodingNinjas. Shows contest names, start times, duration, platform, and direct registration links. Automatically formats times in readable format and calculates contest durations.",
+    use_when="User wants to plan contest participation, check schedules, or uses phrases like 'upcoming contests', 'contest schedule', 'what contests are coming', 'when is next contest', 'contest calendar', 'running contests', 'live contests', 'contest list', or 'what's next on [platform]'.",
+    side_effects="Makes network requests to the clist.by API which aggregates contest data from multiple platforms. Response time typically 2-4 seconds depending on number of platforms requested."
 )
 
 @mcp.tool(description=UpcomingContestsDesc.model_dump_json())

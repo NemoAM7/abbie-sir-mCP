@@ -15,9 +15,9 @@ from mcp_instance import mcp
 
 # --- TOOL: Get User Stats ---
 UserStatsDesc = RichToolDescription(
-    description="Fetches detailed Codeforces stats for one or more users. If no handle is given, it uses your configured default handle.",
-    use_when="User asks for 'my stats', 'rating', 'profile', or to compare several handles.",
-    side_effects="Makes network requests to the Codeforces API."
+    description="Fetches comprehensive Codeforces profile statistics for one or more users including current rating, max rating, rank, registration date, and profile links. Supports batch comparison of multiple users with automatic sorting by rating. If no handle is provided, uses your configured default handle from settings.",
+    use_when="User requests profile information, current stats, rating details, user comparison, leaderboards between friends, or phrases like 'my stats', 'show rating', 'profile info', 'compare with [username]', 'who has higher rating', or 'user leaderboard'.",
+    side_effects="Makes network requests to the Codeforces API. Response time depends on number of users requested (typically 1-3 seconds for multiple users)."
 )
 
 @mcp.tool(description=UserStatsDesc.model_dump_json())
@@ -53,9 +53,9 @@ async def get_codeforces_user_stats(
 
 # --- TOOL: Real Problem Recommendations ---
 RecommendDesc = RichToolDescription(
-    description="Recommends UNSOLVED Codeforces problems based on a user's rating or a specified difficulty.",
-    use_when="User asks 'what to solve', 'recommend problems', or 'practice suggestions'.",
-    side_effects="Makes multiple network requests to fetch problems and user's solved list."
+    description="Intelligently recommends UNSOLVED Codeforces problems tailored to a user's skill level. Analyzes the user's solved problem history to exclude already completed problems and suggests problems within a specified rating range. Automatically determines appropriate difficulty based on user's current rating if no range is specified. Uses smart filtering to ensure recommendations are challenging but achievable.",
+    use_when="User seeks practice problems, skill improvement, or phrases like 'what should I solve', 'recommend problems', 'practice suggestions', 'problems for my rating', 'give me something to solve', 'I need practice', or 'find problems for [rating] level'.",
+    side_effects="Makes multiple network requests: fetches user's solved problems history (can be slow for users with many submissions), retrieves current problemset data, and performs filtering algorithms. Total response time typically 3-7 seconds."
 )
 
 @mcp.tool(description=RecommendDesc.model_dump_json())
@@ -102,9 +102,9 @@ async def recommend_problems(
 
 # --- TOOL: Get Recently Solved Problems ---
 SolvedDesc = RichToolDescription(
-    description="Shows a list of the most recently solved problems for a given Codeforces handle.",
-    use_when="User asks for 'recent solves', 'activity', 'what I solved', or 'stalk'.",
-    side_effects="Makes a network request to the Codeforces API for user status."
+    description="Displays a chronologically ordered list of the most recently solved (AC - Accepted) problems for a Codeforces user. Shows problem names, ratings, solve dates, and direct links to problems. Automatically deduplicates multiple submissions of the same problem to show only unique solves. Perfect for tracking recent activity and progress.",
+    use_when="User wants to review recent activity, track progress, or uses phrases like 'recent solves', 'what did I solve lately', 'my activity', 'recent problems', 'last solved', 'show my progress', 'what I solved today/yesterday', or 'stalk [username]'.",
+    side_effects="Makes a network request to fetch user's submission history (up to 100 recent submissions). Processing time depends on user's submission volume, typically 1-3 seconds."
 )
 
 @mcp.tool(description=SolvedDesc.model_dump_json())
@@ -144,9 +144,9 @@ async def get_solved_problems(
 
 # --- TOOL: Get Rating Changes ---
 RatingChangesDesc = RichToolDescription(
-    description="Shows the rating changes for a user from their most recent rated contests.",
-    use_when="User asks for 'rating changes', 'contest history', or 'performance'.",
-    side_effects="Makes a network request to the Codeforces API for user rating changes."
+    description="Displays detailed rating progression from recent Codeforces contests including contest names, user ranking, old rating, new rating, and rating delta (+/-). Shows performance trends and helps identify improvement patterns. Includes direct links to contest pages for detailed review.",
+    use_when="User wants to analyze contest performance, track rating progression, or uses phrases like 'rating changes', 'contest history', 'my performance', 'how did I do', 'recent contests', 'rating graph data', 'show deltas', or 'contest results'.",
+    side_effects="Makes a network request to fetch user's contest participation history and rating changes. Response time typically 1-2 seconds."
 )
 
 @mcp.tool(description=RatingChangesDesc.model_dump_json())
@@ -177,9 +177,9 @@ async def get_rating_changes(
 
 # --- TOOL: Get Solved Problems Histogram ---
 HistogramDesc = RichToolDescription(
-    description="Displays a histogram of solved problem ratings, showing a user's strengths and weaknesses.",
-    use_when="User asks for a 'histogram', 'rating distribution', or 'breakdown of solved problems'.",
-    side_effects="Makes a network request for the user's submission history."
+    description="Generates a visual ASCII histogram showing the distribution of solved problems across different rating ranges. Reveals user's strengths (rating ranges with many solves) and weaknesses (rating gaps). Uses configurable bin sizes to customize granularity of analysis. Essential for identifying skill gaps and planning focused practice.",
+    use_when="User wants to analyze their problem-solving distribution, identify weak areas, or uses phrases like 'histogram', 'rating distribution', 'breakdown of solved problems', 'show my strengths', 'where are my gaps', 'problem distribution', or 'rating analysis'.",
+    side_effects="Makes a network request to fetch extensive user submission history (up to 5000 submissions for comprehensive analysis). Processing time varies with user's submission count, typically 2-5 seconds."
 )
 
 @mcp.tool(description=HistogramDesc.model_dump_json())
@@ -224,9 +224,9 @@ async def get_solved_rating_histogram(
 
 # --- TOOL: Get Upsolve Targets ---
 UpsolveDesc = RichToolDescription(
-    description="Finds contests where the user has few unsolved problems, making them good targets for upsolving.",
-    use_when="User asks 'what to upsolve', 'fullsolve targets', or 'which contest should I finish'.",
-    side_effects="Makes multiple API calls and can be slow. It checks user status and fetches data for recent contests they participated in."
+    description="Identifies optimal contests for upsolving by finding competitions where the user has participated but left several problems unsolved. Analyzes contest participation history and calculates completion rates to recommend contests that offer the best learning opportunities. Helps users systematically complete contests they've started.",
+    use_when="User wants to find contests to complete, improve contest performance, or uses phrases like 'what to upsolve', 'fullsolve targets', 'which contest should I finish', 'complete contests', 'upsolving suggestions', 'unfinished contests', or 'contest completion'.",
+    side_effects="Makes multiple API calls to analyze user's contest participation and problem-solving history. Can be slower due to comprehensive analysis of multiple contests. Typical response time 5-10 seconds depending on user's contest history."
 )
 
 @mcp.tool(description=UpsolveDesc.model_dump_json())

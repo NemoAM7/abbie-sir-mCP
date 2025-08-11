@@ -36,9 +36,9 @@ def _create_image_response(text: str, image_base64: str) -> List[TextContent | I
 
 # --- TOOL: Plot Rating Graph (Enhanced) ---
 PlotRatingGraphDesc = RichToolDescription(
-    description="Generates a plot of rating history for one or more Codeforces users.",
-    use_when="User asks for a 'rating graph', 'rating plot', or to 'compare ratings' visually.",
-    side_effects="Makes network requests to the Codeforces API and generates an image."
+    description="Generates a comprehensive visual line graph of Codeforces rating progression over time for one or multiple users. Creates professional-quality charts with time-series data, markers for each contest, legend for multiple users, and grid lines for easy reading. Supports comparison between users with different colored lines. Perfect for tracking long-term progress and identifying improvement trends.",
+    use_when="User wants visual analysis of rating progression, performance comparison, or uses phrases like 'rating graph', 'rating plot', 'show my progress visually', 'compare ratings', 'plot my rating', 'rating chart', 'visual rating history', 'graph comparison', or 'rating over time'.",
+    side_effects="Makes network requests to fetch rating history for all specified users, then generates and returns a high-quality PNG image. Processing time depends on number of users and their contest history, typically 3-7 seconds."
 )
 @mcp.tool(description=PlotRatingGraphDesc.model_dump_json())
 async def plot_rating_graph(
@@ -93,9 +93,9 @@ async def plot_rating_graph(
 
 # --- TOOL: Plot Performance Graph ---
 PlotPerformanceDesc = RichToolDescription(
-    description="Generates a graph of a user's contest-by-contest 'true performance' rating.",
-    use_when="User asks for a 'true performance graph', 'performance rating plot', or a plot based on rating change calculations.",
-    side_effects="Makes a network request to the Codeforces API and generates an image."
+    description="Creates a detailed visualization of contest-by-contest 'true performance' ratings, which represent the actual skill level demonstrated in each contest before rating system smoothing. Shows raw performance fluctuations, helping identify consistency patterns, peak performances, and areas for improvement. More granular than regular rating graphs as it shows contest-specific performance rather than smoothed rating progression.",
+    use_when="User wants detailed contest analysis, performance consistency evaluation, or uses phrases like 'true performance graph', 'performance rating plot', 'contest performance', 'raw performance', 'actual skill graph', 'performance analysis', or 'show my real performance'.",
+    side_effects="Makes network requests to fetch detailed contest data and performs performance calculations. Generates high-quality visualization. Response time typically 2-5 seconds."
 )
 @mcp.tool(description=PlotPerformanceDesc.model_dump_json())
 async def plot_performance_graph(
@@ -170,9 +170,9 @@ async def plot_performance_graph(
 
 # --- TOOL: Plot Solved Rating Distribution ---
 PlotHistogramDesc = RichToolDescription(
-    description="Displays a graphical histogram of solved problem ratings for a user.",
-    use_when="User asks for a 'rating distribution plot', 'graph of solved problems', or a visual histogram.",
-    side_effects="Makes a network request for the user's submission history and generates an image."
+    description="Creates a detailed bar chart histogram showing the distribution of solved problems across different rating ranges. Visualizes user's problem-solving pattern, identifies rating ranges where they excel, and reveals gaps in their practice. Uses color-coded bars and clear labels to make the data easily interpretable. Essential for understanding skill distribution and planning targeted practice.",
+    use_when="User wants visual analysis of their problem-solving distribution, skill assessment, or uses phrases like 'rating distribution plot', 'graph of solved problems', 'visual histogram', 'show my skill distribution', 'problem rating chart', 'solved problems graph', or 'rating breakdown chart'.",
+    side_effects="Makes network requests to fetch comprehensive submission history and performs statistical analysis. Generates a high-quality histogram image. Response time typically 3-6 seconds depending on submission volume."
 )
 @mcp.tool(description=PlotHistogramDesc.model_dump_json())
 async def plot_solved_rating_distribution(
@@ -215,9 +215,9 @@ async def plot_solved_rating_distribution(
 
 # --- TOOL: Plot Verdict Distribution ---
 PlotVerdictsDesc = RichToolDescription(
-    description="Generates a pie chart of a user's submission verdicts.",
-    use_when="User asks for a 'verdict chart', 'submission summary', or 'pie chart of results'.",
-    side_effects="Makes a network request for user submissions and generates an image."
+    description="Generates a comprehensive pie chart showing the distribution of submission verdicts (Accepted, Wrong Answer, Time Limit Exceeded, etc.) across all user submissions. Includes percentage calculations, color-coded segments, and clear legends. Helps identify common failure patterns and submission efficiency. Useful for understanding coding accuracy and debugging patterns.",
+    use_when="User wants to analyze submission patterns, accuracy rates, or uses phrases like 'verdict chart', 'submission summary', 'pie chart of results', 'how accurate am I', 'submission stats', 'verdict distribution', 'success rate', or 'error analysis'.",
+    side_effects="Makes network requests to fetch extensive submission history and calculates verdict statistics. Generates a colorful pie chart with percentages. Response time typically 2-4 seconds."
 )
 @mcp.tool(description=PlotVerdictsDesc.model_dump_json())
 async def plot_verdict_distribution(
@@ -262,9 +262,9 @@ async def plot_verdict_distribution(
 
 # --- TOOL: Plot Tag Distribution ---
 PlotTagsDesc = RichToolDescription(
-    description="Generates a bar chart of a user's most solved problem tags.",
-    use_when="User asks for 'tag distribution', 'strengths', 'weaknesses', or 'what tags I solve'.",
-    side_effects="Makes a network request for user submissions and generates an image."
+    description="Creates an informative horizontal bar chart displaying the most frequently solved problem tags/topics (like Dynamic Programming, Graphs, Math, etc.). Shows user's algorithmic strengths and identifies areas that need more practice. Helps in planning topic-focused study sessions and understanding algorithmic preferences. Configurable to show top N tags based on solved problem count.",
+    use_when="User wants to analyze their algorithmic strengths, plan study topics, or uses phrases like 'tag distribution', 'my strengths', 'topic analysis', 'what algorithms do I know', 'algorithmic skills', 'problem categories', 'topic strengths', 'weaknesses', or 'what tags I solve most'.",
+    side_effects="Makes network requests to fetch user's solved problems with tag information and performs frequency analysis. Generates a professional bar chart. Response time typically 3-5 seconds."
 )
 @mcp.tool(description=PlotTagsDesc.model_dump_json())
 async def plot_tag_distribution(
@@ -276,9 +276,9 @@ async def plot_tag_distribution(
 
 # --- TOOL: Plot Language Distribution ---
 PlotLangsDesc = RichToolDescription(
-    description="Generates a pie chart of the programming languages a user submits with.",
-    use_when="User asks for a 'language chart', 'languages used', or 'programming language distribution'.",
-    side_effects="Makes a network request for user submissions and generates an image."
+    description="Generates a detailed pie chart showing the distribution of programming languages used across all submissions. Displays percentages for each language (C++, Python, Java, etc.) with color-coded segments and clear labels. Useful for understanding language preferences, versatility, and identifying if the user should diversify their language skills or focus on specific languages.",
+    use_when="User wants to analyze their programming language usage, coding versatility, or uses phrases like 'language chart', 'languages used', 'programming language distribution', 'what languages do I use', 'language preferences', 'coding languages', or 'language stats'.",
+    side_effects="Makes network requests to fetch submission history with language information and calculates usage statistics. Generates a clear pie chart visualization. Response time typically 2-4 seconds."
 )
 @mcp.tool(description=PlotLangsDesc.model_dump_json())
 async def plot_language_distribution(

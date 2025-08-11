@@ -3,24 +3,76 @@ from textwrap import dedent
 
 @mcp_tool
 async def about() -> dict[str, str]:
+    """
+    Provides comprehensive information about the Competitive Programming Assistant,
+    its capabilities, supported platforms, and how to get started. Essential reference
+    for new users to understand all available features and commands.
+    
+    Use when: User asks 'what can you do', 'help', 'about', 'features', 'commands',
+    'how to use', 'what platforms', or needs an overview of capabilities.
+    """
     server_name = "Competitive Programming Assistant"
     server_description = dedent("""
-    Welcome to your Competitive Programming Assistant!
+    🏆 *Welcome to your Competitive Programming Assistant!*
 
-    This bot is designed to help you at every step of your competitive programming journey. Here’s what it can do for you:
-    - Find and explain problems from popular sites like Codeforces and LeetCode.
-    - Show you today's LeetCode Daily Challenge.
-    - Track upcoming contests and help you prepare with a contest calendar.
-    - Give you stats, ratings, and progress for Codeforces users.
-    - Recommend new problems to solve based on your level.
-    - Show which problems youve solved and where you can improve.
-    - Visualize your progress with graphs and charts (like rating history, solved problems, and more).
-    - Help you upsolve contests and find good practice targets.
-    - Review your code and suggest improvements.
-    - Answer your questions about programming, contests, and strategies.
+    Your AI companion for competitive programming success! Here's what I can do:
 
-    Just ask for help with a problem, contest, or your progress, and this assistant will guide you step by step!
-    Start by asking something like "I am @username and I need help with a problem or give my codeforces stats"
+    📊 *Profile & Stats*
+    • Get Codeforces user stats & ratings
+    • Compare multiple users side-by-side  
+    • Track rating changes & contest performance
+    • Monitor recent solved problems
+
+    🎯 *Smart Recommendations*
+    • Get unsolved problems for your level
+    • Auto-adjust difficulty based on your rating
+    • Find practice problems to improve skills
+    • Identify weak areas in your solving
+
+    📈 *Visual Analysis*
+    • Rating graphs over time
+    • Problem difficulty distribution charts
+    • Tag/topic strength analysis
+    • Submission accuracy pie charts
+    • Programming language usage stats
+
+    🏁 *Contest Info*
+    • Upcoming contests from all major platforms
+    • Codeforces, LeetCode, CodeChef, AtCoder, TopCoder
+    • Contest start times & registration links
+    • Find contests to upsolve & complete
+
+    🧠 *Daily Practice*
+    • Today's LeetCode Daily Challenge
+    • Problem discovery across platforms
+    • Skill assessment & improvement tracking
+
+    🚀 *Quick Start Commands:*
+
+    _For Stats:_
+    "Show my Codeforces stats"
+    "I am [username], show my profile"
+
+    _For Practice:_
+    "Recommend problems for my level"
+    "What's today's LeetCode daily?"
+    "What should I practice?"
+
+    _For Contests:_
+    "What contests are upcoming?"
+    "When is the next contest?"
+
+    _For Analysis:_
+    "Plot my rating graph"
+    "Show my tag distribution"
+    "I am [username], compare me with [username]"
+
+    🔧 *Supported Platforms:*
+    Codeforces, LeetCode, CodeChef, AtCoder, TopCoder, CodingNinjas
+
+    💡 *Pro Tip:* Set your default handle for easier access!
+
+    *Ready to boost your CP journey? Just ask me anything!* 🚀
     """)
     return {
         "name": server_name,
