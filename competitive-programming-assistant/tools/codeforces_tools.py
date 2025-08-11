@@ -1,17 +1,85 @@
+import asyncio
+import base64
+import io
 import textwrap
 import random
-from datetime import datetime
 from collections import defaultdict
+from datetime import datetime
 from typing import Annotated, List, Optional
 
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from pydantic import Field
 from mcp import ErrorData, McpError
-import asyncio
+from mcp.types import TextContent, ImageContent
 
 import config
 from api_clients.codeforces import CodeforcesAPI
 from tools.models import RichToolDescription
 from mcp_instance import mcp
+
+# --- Helper Functions ---
+
+def _get_rank_color(rank: str) -> tuple:
+    """Returns RGB color tuple based on Codeforces rank."""
+    rank_colors = {
+        'newbie': (128, 128, 128),           # Gray
+        'pupil': (0, 128, 0),                # Green
+        'specialist': (3, 168, 158),         # Cyan
+        'expert': (0, 0, 255),               # Blue
+        'candidate master': (170, 0, 170),   # Violet
+        'master': (255, 140, 0),             # Orange
+        'international master': (255, 140, 0), # Orange
+        'grandmaster': (255, 0, 0),          # Red
+        'international grandmaster': (255, 0, 0), # Red
+        'legendary grandmaster': (255, 0, 0)  # Red
+    }
+    return rank_colors.get(rank.lower(), (128, 128, 128))
+
+def _create_gradient_background(width: int, height: int, color1: tuple, color2: tuple) -> Image.Image:
+    """Creates a gradient background image."""
+    base = Image.new('RGB', (width, height), color1)
+    top = Image.new('RGB', (width, height), color2)
+    mask = Image.new('L', (width, height))
+    mask_data = []
+    for y in range(height):
+        mask_data.extend([int(255 * (y / height))] * width)
+    mask.putdata(mask_data)
+    base.paste(top, (0, 0), mask)
+    return base
+
+def _get_default_font(size: int) -> ImageFont.FreeTypeFont:
+    """Gets default font, falls back to PIL default if system fonts unavailable."""
+    try:
+        return ImageFont.truetype("arial.ttf", size)
+    except:
+        try:
+            return ImageFont.truetype("/System/Library/Fonts/Arial.ttf", size)
+        except:
+            return ImageFont.load_default()
+
+def _draw_progress_bar(draw: ImageDraw.Draw, x: int, y: int, width: int, height: int, 
+                      progress: float, bg_color: tuple, fill_color: tuple):
+    """Draws a progress bar."""
+    # Background
+    draw.rectangle([x, y, x + width, y + height], fill=bg_color, outline=(200, 200, 200))
+    # Progress fill
+    fill_width = int(width * min(progress, 1.0))
+    if fill_width > 0:
+        draw.rectangle([x, y, x + fill_width, y + height], fill=fill_color)
+
+def _image_to_base64(image: Image.Image) -> str:
+    """Converts PIL Image to base64 string."""
+    buf = io.BytesIO()
+    image.save(buf, format='PNG', optimize=True)
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode('utf-8')
+
+def _create_image_response(text: str, image_base64: str) -> List[TextContent | ImageContent]:
+    """Creates the standard MCP response format for an image using proper MCP types."""
+    return [
+        TextContent(type="text", text=text), 
+        ImageContent(type="image", mimeType="image/png", data=image_base64)
+    ]
 
 # --- TOOL: Get User Stats ---
 UserStatsDesc = RichToolDescription(
@@ -222,21 +290,7 @@ async def get_solved_rating_histogram(
     except Exception as e:
         raise McpError(ErrorData(code=500, message=f"Error generating histogram: {str(e)}"))
 
-# --- TOOL: Get Upsolve Targets ---
-UpsolveDesc = RichToolDescription(
-    description="Identifies optimal contests for upsolving by finding competitions where the user has participated but left several problems unsolved. Analyzes contest participation history and calculates completion rates to recommend contests that offer the best learning opportunities. Helps users systematically complete contests they've started.",
-    use_when="User wants to find contests to complete, improve contest performance, or uses phrases like 'what to upsolve', 'fullsolve targets', 'which contest should I finish', 'complete contests', 'upsolving suggestions', 'unfinished contests', or 'contest completion'.",
-    side_effects="Makes multiple API calls to analyze user's contest participation and problem-solving history. Can be slower due to comprehensive analysis of multiple contests. Typical response time 5-10 seconds depending on user's contest history."
-)
 
-@mcp.tool(description=UpsolveDesc.model_dump_json())
-async def get_upsolve_targets(
-    handle: Annotated[Optional[str], Field(description="The user's Codeforces handle. Defaults to your configured handle.")] = None,
-    count: Annotated[int, Field(description="Number of contest targets to show.")] = 5
-) -> str:
-    # Note: This tool is more complex and has been omitted for brevity in this example.
-    # You can copy its full implementation from your original script if needed.
-    return "Upsolving tool logic goes here."
 
 # --- TOOL: Compare Users ---
 ComparisonDesc = RichToolDescription(
@@ -387,3 +441,470 @@ I'm here to help you with Codeforces analysis and improvement. Here's what I can
 • Compare with friends to stay motivated!
 
 Just ask me anything about Codeforces analysis - I'm here to help you improve! 🚀"""
+
+# --- TOOL: Generate Profile Card ---
+
+ProfileCardDesc = RichToolDescription(
+    description="Generates a visually appealing Codeforces profile card showing key stats, rating, and achievements.",
+    use_when="User asks to 'generate profile card', 'make profile image', 'create profile snippet', or 'share my profile'.",
+    side_effects="Makes network requests to Codeforces API and generates a profile card image."
+)
+
+@mcp.tool(description=ProfileCardDesc.model_dump_json())
+async def generate_profile_card(
+    handle: Annotated[Optional[str], Field(description="The Codeforces handle. Defaults to your configured handle.")] = None,
+    style: Annotated[str, Field(description="Card style: 'modern', 'minimal', 'dark', or 'achievement'.")] = "modern",
+    include_graph: Annotated[bool, Field(description="Whether to include a mini rating graph.")] = True
+) -> List[TextContent | ImageContent]:
+    
+    target_handle = handle or config.DEFAULT_HANDLE
+    if not target_handle:
+        raise McpError(ErrorData(code=400, message="Please specify a handle or set DEFAULT_HANDLE."))
+    
+    try:
+        # Fetch user data
+        user_info_list, rating_changes, submissions = await asyncio.gather(
+            CodeforcesAPI.get_user_info([target_handle]),
+            CodeforcesAPI.get_user_rating_changes(target_handle),
+            CodeforcesAPI.get_user_status(target_handle, count=1000)
+        )
+        
+        if not user_info_list:
+            raise McpError(ErrorData(code=404, message=f"User '{target_handle}' not found."))
+        
+        user_info = user_info_list[0]
+        
+        # Calculate stats
+        solved_problems = set()
+        for sub in submissions:
+            if sub.get('verdict') == 'OK':
+                problem = sub['problem']
+                solved_problems.add(f"{problem.get('contestId')}-{problem.get('index')}")
+        
+        total_solved = len(solved_problems)
+        current_rating = user_info.get('rating', 0)
+        max_rating = user_info.get('maxRating', current_rating)
+        rank = user_info.get('rank', 'Unrated')
+        member_since = datetime.fromtimestamp(user_info.get('registrationTimeSeconds', 0))
+        
+        # Create card based on style
+        if style == "dark":
+            width, height = 800, 500
+            bg_color1 = (30, 30, 40)
+            bg_color2 = (50, 50, 60)
+            text_color = (255, 255, 255)
+            accent_color = _get_rank_color(rank)
+        elif style == "minimal":
+            width, height = 700, 400
+            bg_color1 = (250, 250, 250)
+            bg_color2 = (240, 240, 240)
+            text_color = (50, 50, 50)
+            accent_color = _get_rank_color(rank)
+        else:  # modern or achievement
+            width, height = 850, 550
+            bg_color1 = (245, 245, 250)
+            bg_color2 = (235, 235, 245)
+            text_color = (40, 40, 40)
+            accent_color = _get_rank_color(rank)
+        
+        # Create base image
+        image = _create_gradient_background(width, height, bg_color1, bg_color2)
+        draw = ImageDraw.Draw(image)
+        
+        # Fonts
+        title_font = _get_default_font(36)
+        header_font = _get_default_font(24)
+        text_font = _get_default_font(18)
+        small_font = _get_default_font(14)
+        
+        # Draw main content
+        y_offset = 40
+        
+        # Header with handle and rank
+        draw.text((40, y_offset), target_handle, font=title_font, fill=accent_color)
+        rank_text = f"{rank.title()}"
+        draw.text((40, y_offset + 50), rank_text, font=header_font, fill=text_color)
+        
+        # Rating section
+        y_offset += 120
+        draw.text((40, y_offset), "Rating", font=header_font, fill=text_color)
+        
+        rating_text = f"Current: {current_rating}"
+        if max_rating != current_rating:
+            rating_text += f" (Max: {max_rating})"
+        draw.text((40, y_offset + 35), rating_text, font=text_font, fill=accent_color)
+        
+        # Progress bar for rating (assuming 3000 as max for visualization)
+        _draw_progress_bar(draw, 40, y_offset + 70, 300, 15, current_rating/3000, 
+                          (200, 200, 200), accent_color)
+        
+        # Stats section
+        y_offset += 120
+        draw.text((40, y_offset), "Statistics", font=header_font, fill=text_color)
+        
+        stats_text = f"Problems Solved: {total_solved}"
+        draw.text((40, y_offset + 35), stats_text, font=text_font, fill=text_color)
+        
+        member_text = f"Member Since: {member_since.strftime('%B %Y')}"
+        draw.text((40, y_offset + 65), member_text, font=text_font, fill=text_color)
+        
+        if rating_changes:
+            contests_count = len(rating_changes)
+            draw.text((40, y_offset + 95), f"Contests: {contests_count}", font=text_font, fill=text_color)
+        
+        # Mini rating graph if requested and data available
+        if include_graph and rating_changes and len(rating_changes) > 1:
+            graph_x, graph_y = width - 320, 50
+            graph_width, graph_height = 280, 150
+            
+            # Draw graph background
+            draw.rectangle([graph_x, graph_y, graph_x + graph_width, graph_y + graph_height], 
+                          fill=(255, 255, 255, 128), outline=accent_color, width=2)
+            
+            # Plot rating changes
+            sorted_changes = sorted(rating_changes, key=lambda x: x['ratingUpdateTimeSeconds'])
+            ratings = [rc['newRating'] for rc in sorted_changes]
+            
+            if len(ratings) > 1:
+                min_rating = min(ratings)
+                max_rating_graph = max(ratings)
+                rating_range = max_rating_graph - min_rating if max_rating_graph != min_rating else 1
+                
+                points = []
+                for i, rating in enumerate(ratings):
+                    x = graph_x + 10 + (i * (graph_width - 20)) // (len(ratings) - 1)
+                    y = graph_y + graph_height - 10 - int(((rating - min_rating) / rating_range) * (graph_height - 20))
+                    points.append((x, y))
+                
+                # Draw lines between points
+                for i in range(len(points) - 1):
+                    draw.line([points[i], points[i + 1]], fill=accent_color, width=2)
+                
+                # Draw points
+                for point in points:
+                    draw.ellipse([point[0] - 3, point[1] - 3, point[0] + 3, point[1] + 3], fill=accent_color)
+        
+        # Add decorative elements for achievement style
+        if style == "achievement":
+            # Add some star decorations
+            star_points = [(width - 60, 30), (width - 60, height - 60), (30, height - 60)]
+            for x, y in star_points:
+                draw.regular_polygon((x, y, 15), 5, fill=accent_color)
+        
+        # Footer
+        footer_text = f"Generated on {datetime.now().strftime('%B %d, %Y')}"
+        draw.text((40, height - 40), footer_text, font=small_font, fill=(150, 150, 150))
+        
+        # Codeforces attribution
+        cf_text = "Codeforces Profile"
+        draw.text((width - 200, height - 40), cf_text, font=small_font, fill=(150, 150, 150))
+        
+        # Convert to base64
+        image_base64 = _image_to_base64(image)
+        
+        response_text = f"🎨 **Profile Card Generated for {target_handle}**\n\n"
+        response_text += f"📊 **Stats Preview:**\n"
+        response_text += f"• Rating: {current_rating} ({rank.title()})\n"
+        response_text += f"• Problems Solved: {total_solved}\n"
+        response_text += f"• Style: {style.title()}\n\n"
+        response_text += "Perfect for sharing on social media! 🚀"
+        
+        return _create_image_response(response_text, image_base64)
+        
+    except Exception as e:
+        raise McpError(ErrorData(code=500, message=f"❌ Error generating profile card: {str(e)}"))
+
+
+# --- TOOL: Generate Achievement Card ---
+
+AchievementCardDesc = RichToolDescription(
+    description="Creates a special achievement card for milestones like rating increases, problem solving streaks, or rank promotions.",
+    use_when="User asks to 'celebrate achievement', 'milestone card', 'rank promotion card', or 'achievement image'.",
+    side_effects="Makes network requests to Codeforces API and generates an achievement celebration image."
+)
+
+@mcp.tool(description=AchievementCardDesc.model_dump_json())
+async def generate_achievement_card(
+    handle: Annotated[Optional[str], Field(description="The Codeforces handle. Defaults to your configured handle.")] = None,
+    achievement_type: Annotated[str, Field(description="Type of achievement: 'rating_milestone', 'rank_promotion', 'problem_milestone', or 'contest_milestone'.")] = "rating_milestone",
+    milestone_value: Annotated[Optional[int], Field(description="The milestone value (e.g., 1500 for rating, 500 for problems).")] = None
+) -> List[TextContent | ImageContent]:
+    
+    target_handle = handle or config.DEFAULT_HANDLE
+    if not target_handle:
+        raise McpError(ErrorData(code=400, message="Please specify a handle or set DEFAULT_HANDLE."))
+    
+    try:
+        # Fetch user data
+        user_info_list, rating_changes, submissions = await asyncio.gather(
+            CodeforcesAPI.get_user_info([target_handle]),
+            CodeforcesAPI.get_user_rating_changes(target_handle),
+            CodeforcesAPI.get_user_status(target_handle, count=2000)
+        )
+        
+        if not user_info_list:
+            raise McpError(ErrorData(code=404, message=f"User '{target_handle}' not found."))
+        
+        user_info = user_info_list[0]
+        current_rating = user_info.get('rating', 0)
+        rank = user_info.get('rank', 'Unrated')
+        
+        # Create achievement card (800x600 for celebration)
+        width, height = 800, 600
+        
+        # Golden celebration theme
+        bg_color1 = (255, 215, 0, 100)  # Gold
+        bg_color2 = (255, 140, 0, 100)  # Dark orange
+        
+        # Create base with celebration background
+        image = Image.new('RGBA', (width, height), (30, 30, 50, 255))
+        
+        # Add celebration elements
+        overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(overlay)
+        
+        # Draw celebration rays
+        center_x, center_y = width // 2, height // 2
+        for i in range(0, 360, 30):
+            import math
+            x1 = center_x + int(200 * math.cos(math.radians(i)))
+            y1 = center_y + int(200 * math.sin(math.radians(i)))
+            x2 = center_x + int(300 * math.cos(math.radians(i)))
+            y2 = center_y + int(300 * math.sin(math.radians(i)))
+            draw.line([(x1, y1), (x2, y2)], fill=(255, 215, 0, 100), width=3)
+        
+        image = Image.alpha_composite(image, overlay)
+        draw = ImageDraw.Draw(image)
+        
+        # Fonts
+        title_font = _get_default_font(48)
+        subtitle_font = _get_default_font(28)
+        text_font = _get_default_font(20)
+        
+        # Achievement content based on type
+        if achievement_type == "rating_milestone":
+            milestone = milestone_value or (current_rating // 100 * 100)
+            title = "🎉 MILESTONE ACHIEVED! 🎉"
+            subtitle = f"{target_handle} reached {milestone}+ rating!"
+            description = f"Current Rating: {current_rating}\nRank: {rank.title()}"
+            
+        elif achievement_type == "rank_promotion":
+            title = "🚀 RANK PROMOTION! 🚀"
+            subtitle = f"{target_handle} is now {rank.title()}!"
+            description = f"Rating: {current_rating}\nKeep climbing! 📈"
+            
+        elif achievement_type == "problem_milestone":
+            solved_count = len(set(f"{s['problem'].get('contestId')}-{s['problem'].get('index')}" 
+                                 for s in submissions if s.get('verdict') == 'OK'))
+            milestone = milestone_value or (solved_count // 100 * 100)
+            title = "💪 CODING MILESTONE! 💪"
+            subtitle = f"{target_handle} solved {milestone}+ problems!"
+            description = f"Total Solved: {solved_count}\nRating: {current_rating}"
+            
+        else:  # contest_milestone
+            contest_count = len(rating_changes) if rating_changes else 0
+            title = "🏆 CONTEST WARRIOR! 🏆"
+            subtitle = f"{target_handle} participated in {contest_count}+ contests!"
+            description = f"Contests: {contest_count}\nRating: {current_rating}"
+        
+        # Draw achievement content
+        # Title
+        title_bbox = draw.textbbox((0, 0), title, font=title_font)
+        title_width = title_bbox[2] - title_bbox[0]
+        draw.text(((width - title_width) // 2, 100), title, font=title_font, fill=(255, 255, 255))
+        
+        # Subtitle
+        subtitle_bbox = draw.textbbox((0, 0), subtitle, font=subtitle_font)
+        subtitle_width = subtitle_bbox[2] - subtitle_bbox[0]
+        draw.text(((width - subtitle_width) // 2, 180), subtitle, font=subtitle_font, fill=(255, 215, 0))
+        
+        # Description
+        desc_lines = description.split('\n')
+        y_pos = 280
+        for line in desc_lines:
+            line_bbox = draw.textbbox((0, 0), line, font=text_font)
+            line_width = line_bbox[2] - line_bbox[0]
+            draw.text(((width - line_width) // 2, y_pos), line, font=text_font, fill=(200, 200, 200))
+            y_pos += 35
+        
+        # Add decorative stars
+        star_positions = [(100, 150), (700, 150), (150, 450), (650, 450), (400, 400)]
+        for x, y in star_positions:
+            draw.regular_polygon((x, y, 20), 5, fill=(255, 215, 0))
+        
+        # Footer
+        footer_text = f"Achievement unlocked on {datetime.now().strftime('%B %d, %Y')}"
+        footer_bbox = draw.textbbox((0, 0), footer_text, font=text_font)
+        footer_width = footer_bbox[2] - footer_bbox[0]
+        draw.text(((width - footer_width) // 2, height - 50), footer_text, font=text_font, fill=(150, 150, 150))
+        
+        # Convert to base64
+        image_base64 = _image_to_base64(image)
+        
+        response_text = f"🎊 **Achievement Card Created!**\n\n"
+        response_text += f"Congratulations {target_handle} on this milestone! 🎉\n"
+        response_text += f"Perfect for sharing your success! 🚀"
+        
+        return _create_image_response(response_text, image_base64)
+        
+    except Exception as e:
+        raise McpError(ErrorData(code=500, message=f"❌ Error generating achievement card: {str(e)}"))
+
+
+# --- TOOL: Generate Comparison Card ---
+
+ComparisonCardDesc = RichToolDescription(
+    description="Creates a side-by-side comparison card for multiple Codeforces users showing their stats and ratings.",
+    use_when="User asks to 'compare profiles', 'versus card', 'comparison image', or 'compare with friend'.",
+    side_effects="Makes network requests to Codeforces API for multiple users and generates a comparison image."
+)
+
+@mcp.tool(description=ComparisonCardDesc.model_dump_json())
+async def generate_comparison_card(
+    handles: Annotated[List[str], Field(description="List of 2-4 Codeforces handles to compare.")],
+    show_graph: Annotated[bool, Field(description="Whether to include rating graphs for each user.")] = True
+) -> List[TextContent | ImageContent]:
+    
+    if not handles or len(handles) < 2:
+        raise McpError(ErrorData(code=400, message="Please provide at least 2 handles for comparison."))
+    
+    if len(handles) > 4:
+        handles = handles[:4]  # Limit to 4 for layout reasons
+    
+    try:
+        # Fetch data for all users
+        user_data = []
+        for handle in handles:
+            user_info_list, rating_changes, submissions = await asyncio.gather(
+                CodeforcesAPI.get_user_info([handle]),
+                CodeforcesAPI.get_user_rating_changes(handle),
+                CodeforcesAPI.get_user_status(handle, count=1000)
+            )
+            
+            if user_info_list:
+                solved_count = len(set(f"{s['problem'].get('contestId')}-{s['problem'].get('index')}" 
+                                     for s in submissions if s.get('verdict') == 'OK'))
+                user_data.append({
+                    'handle': handle,
+                    'info': user_info_list[0],
+                    'rating_changes': rating_changes,
+                    'solved_count': solved_count
+                })
+        
+        if not user_data:
+            raise McpError(ErrorData(code=404, message="No valid users found for comparison."))
+        
+        # Create comparison layout
+        user_count = len(user_data)
+        if user_count == 2:
+            width, height = 900, 500
+            cols, rows = 2, 1
+        elif user_count == 3:
+            width, height = 900, 700
+            cols, rows = 2, 2  # 2 top, 1 bottom center
+        else:  # 4 users
+            width, height = 900, 700
+            cols, rows = 2, 2
+        
+        # Create base image
+        image = Image.new('RGB', (width, height), (240, 240, 250))
+        draw = ImageDraw.Draw(image)
+        
+        # Fonts
+        title_font = _get_default_font(32)
+        header_font = _get_default_font(20)
+        text_font = _get_default_font(16)
+        
+        # Title
+        title_text = f"Profile Comparison"
+        title_bbox = draw.textbbox((0, 0), title_text, font=title_font)
+        title_width = title_bbox[2] - title_bbox[0]
+        draw.text(((width - title_width) // 2, 20), title_text, font=title_font, fill=(50, 50, 50))
+        
+        # Calculate card dimensions
+        card_width = (width - 60) // cols
+        card_height = (height - 100) // rows
+        
+        # Draw each user's card
+        for i, user in enumerate(user_data):
+            if user_count == 3 and i == 2:
+                # Center the third card
+                col = 0
+                row = 1
+                x = (width - card_width) // 2
+            else:
+                col = i % cols
+                row = i // cols
+                x = 30 + col * (card_width + 10)
+            
+            y = 80 + row * (card_height + 10)
+            
+            # Card background
+            rank = user['info'].get('rank', 'Unrated')
+            card_color = _get_rank_color(rank)
+            lighter_color = tuple(min(255, c + 50) for c in card_color)
+            
+            draw.rectangle([x, y, x + card_width, y + card_height], 
+                          fill=(250, 250, 250), outline=card_color, width=3)
+            
+            # Header with handle and rank
+            header_y = y + 15
+            draw.text((x + 15, header_y), user['handle'], font=header_font, fill=card_color)
+            draw.text((x + 15, header_y + 30), rank.title(), font=text_font, fill=(100, 100, 100))
+            
+            # Stats
+            stats_y = header_y + 70
+            current_rating = user['info'].get('rating', 0)
+            max_rating = user['info'].get('maxRating', current_rating)
+            
+            draw.text((x + 15, stats_y), f"Rating: {current_rating}", font=text_font, fill=(50, 50, 50))
+            if max_rating != current_rating:
+                draw.text((x + 15, stats_y + 25), f"Max: {max_rating}", font=text_font, fill=(100, 100, 100))
+            
+            draw.text((x + 15, stats_y + 50), f"Solved: {user['solved_count']}", font=text_font, fill=(50, 50, 50))
+            
+            # Mini rating graph if enabled and data available
+            if show_graph and user['rating_changes'] and len(user['rating_changes']) > 1:
+                graph_x = x + 15
+                graph_y = stats_y + 85
+                graph_width = card_width - 30
+                graph_height = 80
+                
+                # Graph background
+                draw.rectangle([graph_x, graph_y, graph_x + graph_width, graph_y + graph_height], 
+                              fill=(255, 255, 255), outline=card_color, width=1)
+                
+                # Plot rating changes
+                sorted_changes = sorted(user['rating_changes'], key=lambda x: x['ratingUpdateTimeSeconds'])
+                ratings = [rc['newRating'] for rc in sorted_changes]
+                
+                if len(ratings) > 1:
+                    min_rating = min(ratings)
+                    max_rating_graph = max(ratings)
+                    rating_range = max_rating_graph - min_rating if max_rating_graph != min_rating else 1
+                    
+                    points = []
+                    for j, rating in enumerate(ratings):
+                        px = graph_x + 5 + (j * (graph_width - 10)) // (len(ratings) - 1)
+                        py = graph_y + graph_height - 5 - int(((rating - min_rating) / rating_range) * (graph_height - 10))
+                        points.append((px, py))
+                    
+                    # Draw lines
+                    for j in range(len(points) - 1):
+                        draw.line([points[j], points[j + 1]], fill=card_color, width=2)
+        
+        # Convert to base64
+        image_base64 = _image_to_base64(image)
+        
+        response_text = f"⚔️ **Profile Comparison Generated!**\n\n"
+        response_text += f"Comparing {len(user_data)} profiles:\n"
+        for user in user_data:
+            rating = user['info'].get('rating', 0)
+            rank = user['info'].get('rank', 'Unrated')
+            response_text += f"• {user['handle']}: {rating} ({rank.title()})\n"
+        response_text += "\nGreat for friendly competition! 🏆"
+        
+        return _create_image_response(response_text, image_base64)
+        
+    except Exception as e:
+        raise McpError(ErrorData(code=500, message=f"❌ Error generating comparison card: {str(e)}"))
