@@ -237,3 +237,153 @@ async def get_upsolve_targets(
     # Note: This tool is more complex and has been omitted for brevity in this example.
     # You can copy its full implementation from your original script if needed.
     return "Upsolving tool logic goes here."
+
+# --- TOOL: Compare Users ---
+ComparisonDesc = RichToolDescription(
+    description="Performs comprehensive comparison between multiple Codeforces users with detailed metrics including ratings, contest performance, activity levels, and improvement trends. Handles edge cases like invalid handles, inactive users, or API failures gracefully with clear error messages.",
+    use_when="User wants to compare multiple competitive programmers, create leaderboards, analyze relative performance, or uses phrases like 'compare us', 'compare me with [name]', 'who is better', 'leaderboard between friends', 'rank us', 'performance comparison', 'who has better stats', 'how do I stack up', 'compare handles', 'user vs user', 'show comparison', 'analyze together', 'who's winning', 'rate comparison', 'contest comparison', 'skill comparison', 'check standings', 'measure against', 'benchmark users', 'head to head', 'versus analysis', or any request involving multiple usernames/handles for comparison purposes.",
+    side_effects="Makes multiple API calls to gather comprehensive data for all users. Response time scales with number of users (3-8 seconds for 3 users). Handles API failures and missing data gracefully."
+)
+
+@mcp.tool(description=ComparisonDesc.model_dump_json())
+async def compare_codeforces_users(
+    handles: Annotated[List[str], Field(description="List of Codeforces handles to compare")]
+) -> str:
+    if not handles or len(handles) < 2:
+        return "❌ Please provide at least 2 handles to compare."
+    
+    try:
+        # Get basic user info
+        users_info = await CodeforcesAPI.get_user_info(handles)
+        
+        # Handle missing users gracefully
+        found_handles = {user['handle'].lower() for user in users_info} if users_info else set()
+        missing_handles = [h for h in handles if h.lower() not in found_handles]
+        
+        if missing_handles:
+            return f"❌ Could not find the following users: {', '.join(missing_handles)}\n\nPlease check if these handles exist on Codeforces."
+        
+        if not users_info:
+            return "❌ No valid users found. Please check the handles and try again."
+        
+        # Detailed comparison analysis
+        comparison_data = []
+        for user in users_info:
+            handle = user['handle']
+            try:
+                # Get additional data for each user
+                rating_changes = await CodeforcesAPI.get_user_rating_changes(handle)
+                recent_submissions = await CodeforcesAPI.get_user_status(handle, count=50)
+                
+                # Calculate metrics
+                metrics = {
+                    'handle': handle,
+                    'current_rating': user.get('rating', 0),
+                    'max_rating': user.get('maxRating', 0),
+                    'rank': user.get('rank', 'Unrated'),
+                    'contests_count': len(rating_changes) if rating_changes else 0,
+                    'recent_activity': len([s for s in recent_submissions if s.get('verdict') == 'OK']) if recent_submissions else 0,
+                    'registration_date': datetime.fromtimestamp(user.get('registrationTimeSeconds', 0)),
+                    'last_rating_change': rating_changes[-1] if rating_changes else None
+                }
+                comparison_data.append(metrics)
+                
+            except Exception as e:
+                # Handle individual user API failures
+                metrics = {
+                    'handle': handle,
+                    'current_rating': user.get('rating', 0),
+                    'max_rating': user.get('maxRating', 0),
+                    'rank': user.get('rank', 'Unrated'),
+                    'contests_count': 'N/A',
+                    'recent_activity': 'N/A',
+                    'registration_date': datetime.fromtimestamp(user.get('registrationTimeSeconds', 0)),
+                    'error': f"Limited data due to API issues"
+                }
+                comparison_data.append(metrics)
+        
+        # Sort by current rating
+        comparison_data.sort(key=lambda x: x['current_rating'], reverse=True)
+        
+        # Generate comparison report (WhatsApp formatted)
+        response = "🏆 *Competitive Programming Comparison*\n\n"
+        
+        for i, user in enumerate(comparison_data, 1):
+            position_emoji = ["🥇", "🥈", "🥉"][i-1] if i <= 3 else f"{i}."
+            
+            response += f"{position_emoji} *{user['rank']} {user['handle']}*\n"
+            response += f"   • Current Rating: *{user['current_rating']}*\n"
+            response += f"   • Peak Rating: *{user['max_rating']}*\n"
+            response += f"   • Contests Participated: {user['contests_count']}\n"
+            response += f"   • Recent AC Problems: {user['recent_activity']}\n"
+            response += f"   • Member Since: {user['registration_date'].strftime('%b %Y')}\n"
+            
+            if 'error' in user:
+                response += f"   • ⚠️ {user['error']}\n"
+            
+            response += "\n"
+        
+        # Add final verdict
+        winner = comparison_data[0]
+        response += f"🎯 *Final Verdict*: _{winner['handle']}_ leads with {winner['current_rating']} rating!\n\n"
+        
+        # Add insights
+        response += "📊 *Key Insights*:\n"
+        rating_gap = comparison_data[0]['current_rating'] - comparison_data[-1]['current_rating']
+        response += f"• Rating spread: {rating_gap} points\n"
+        
+        most_active = max(comparison_data, key=lambda x: x['recent_activity'] if isinstance(x['recent_activity'], int) else 0)
+        if isinstance(most_active['recent_activity'], int):
+            response += f"• Most active solver: _{most_active['handle']}_ ({most_active['recent_activity']} recent ACs)\n"
+        
+        return response
+        
+    except Exception as e:
+        return f"❌ *Comparison failed*: {str(e)}\n\nThis might be due to:\n• Network connectivity issues\n• Codeforces API being temporarily unavailable\n• Invalid handle formats\n\nPlease try again in a few moments."
+
+# --- TOOL: Show Bot Capabilities ---
+CapabilitiesDesc = RichToolDescription(
+    description="Displays a comprehensive overview of the competitive programming assistant's capabilities, available commands, and example usage patterns. Perfect for new users or when someone needs a refresher on what the bot can do.",
+    use_when="User sends basic greetings or requests help, such as 'hi', 'hello', 'help', 'what can you do', 'commands', 'features', 'capabilities', 'how to use', or any general inquiry about bot functionality.",
+    side_effects="No API calls - displays static information about available features and tools."
+)
+
+@mcp.tool(description=CapabilitiesDesc.model_dump_json())
+async def show_bot_capabilities() -> str:
+    return """👋 *Welcome to your Competitive Programming Assistant!*
+
+I'm here to help you with Codeforces analysis and improvement. Here's what I can do:
+
+🏆 *Profile & Stats*
+• my stats - View your current rating, rank, and profile info
+• compare me with [username] - Head-to-head comparison with other users
+• leaderboard [user1] [user2] [user3] - Create rankings between friends
+
+📊 *Performance Analysis*
+• rating changes - See your recent contest performance and rating deltas
+• histogram - Visual breakdown of solved problems by rating range
+• recent solves - Track your latest accepted solutions
+
+💡 *Practice & Improvement*
+• recommend problems - Get personalized problem suggestions for your level
+• problems for [rating] - Find practice problems in specific rating ranges
+• what to upsolve - Discover contests worth completing
+
+🎯 *Activity Tracking*
+• recent activity - Monitor your solving patterns
+• stalk [username] - Check what others have been solving lately
+
+*💬 Quick Examples:*
+• "Show my Codeforces stats"
+• "Recommend 5 problems around 1400 rating"
+• "Compare me with tourist and Errichto"
+• "What did I solve this week?"
+• "Show rating histogram with 200-point bins"
+
+*🚀 Pro Tips:*
+• Set your default handle in config to avoid typing it repeatedly
+• Use specific rating ranges for targeted practice
+• Check histograms to identify skill gaps
+• Compare with friends to stay motivated!
+
+Just ask me anything about Codeforces analysis - I'm here to help you improve! 🚀"""
