@@ -1,5 +1,7 @@
 # Competitive Programming Assistant - MCP Server
 
+![Python](https://img.shields.io/badge/language-Python-blue?style=flat-square)
+
 A comprehensive Model Context Protocol (MCP) server designed to enhance competitive programming workflows through intelligent data analysis, visualization, and problem recommendations. Built for the hackathon, this project integrates with Codeforces API to provide actionable insights for competitive programmers.
 
 ## Overview
