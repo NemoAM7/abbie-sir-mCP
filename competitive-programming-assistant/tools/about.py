@@ -13,66 +13,15 @@ async def about() -> dict[str, str]:
     """
     server_name = "Competitive Programming Assistant"
     server_description = dedent("""
-    🏆 *Welcome to your Competitive Programming Assistant!*
+    Competitive Programming Assistant gives you contest problems, user stats, and contest info from Codeforces, LeetCode, CodeChef, AtCoder, TopCoder, and CodingNinjas.
 
-    Your AI companion for competitive programming success! Here's what I can do:
+    Main features:
+    - Get user stats
+    - Track ratings
+    - Recommend problems
+    - Find contests
 
-    📊 *Profile & Stats*
-    • Get Codeforces user stats & ratings
-    • Compare multiple users side-by-side  
-    • Track rating changes & contest performance
-    • Monitor recent solved problems
-
-    🎯 *Smart Recommendations*
-    • Get unsolved problems for your level
-    • Auto-adjust difficulty based on your rating
-    • Find practice problems to improve skills
-    • Identify weak areas in your solving
-
-    📈 *Visual Analysis*
-    • Rating graphs over time
-    • Problem difficulty distribution charts
-    • Tag/topic strength analysis
-    • Submission accuracy pie charts
-    • Programming language usage stats
-
-    🏁 *Contest Info*
-    • Upcoming contests from all major platforms
-    • Codeforces, LeetCode, CodeChef, AtCoder, TopCoder
-    • Contest start times & registration links
-    • Find contests to upsolve & complete
-
-    🧠 *Daily Practice*
-    • Today's LeetCode Daily Challenge
-    • Problem discovery across platforms
-    • Skill assessment & improvement tracking
-
-    🚀 *Quick Start Commands:*
-
-    _For Stats:_
-    "Show my Codeforces stats"
-    "I am [username], show my profile"
-
-    _For Practice:_
-    "Recommend problems for my level"
-    "What's today's LeetCode daily?"
-    "What should I practice?"
-
-    _For Contests:_
-    "What contests are upcoming?"
-    "When is the next contest?"
-
-    _For Analysis:_
-    "Plot my rating graph"
-    "Show my tag distribution"
-    "I am [username], compare me with [username]"
-
-    🔧 *Supported Platforms:*
-    Codeforces, LeetCode, CodeChef, AtCoder, TopCoder, CodingNinjas
-
-    💡 *Pro Tip:* Set your default handle for easier access!
-
-    *Ready to boost your CP journey? Just ask me anything!* 🚀
+    Example: "Show my Codeforces stats", "Recommend problems", "Upcoming contests"
     """)
     return {
         "name": server_name,

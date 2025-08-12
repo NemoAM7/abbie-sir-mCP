@@ -31,7 +31,7 @@ from mcp_instance import mcp
 
 # --- TOOL: Get LeetCode Daily Problem ---
 LeetCodeDailyDesc = RichToolDescription(
-    description="Retrieves today's official LeetCode Daily Coding Challenge including problem title, difficulty level, complete problem description, and direct link to solve. Automatically formats the problem description from HTML to readable text with proper formatting for code examples and constraints. Perfect for daily practice routine.",
+    description="Gets today's LeetCode Daily Challenge with title, difficulty, description, and link. Formats for easy reading.",
     use_when="User wants today's practice problem, daily coding challenge, or uses phrases like 'daily problem', 'LeetCode daily', 'today's LeetCode', 'daily challenge', 'what's the problem today', 'daily coding problem', or 'LeetCode POTD (Problem of the Day)'.",
     side_effects="Makes a network request to the LeetCode GraphQL API to fetch current daily challenge. Response time typically 1-3 seconds. Converts HTML content to readable format."
 )

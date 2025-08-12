@@ -83,7 +83,7 @@ def _create_image_response(text: str, image_base64: str) -> List[TextContent | I
 
 # --- TOOL: Get User Stats ---
 UserStatsDesc = RichToolDescription(
-    description="Fetches comprehensive Codeforces profile statistics for one or more users including current rating, max rating, rank, registration date, and profile links. Supports batch comparison of multiple users with automatic sorting by rating. If no handle is provided, uses your configured default handle from settings.",
+    description="Gets Codeforces profile stats for users: rating, rank, registration date, and profile links. Supports comparison.",
     use_when="User requests profile information, current stats, rating details, user comparison, leaderboards between friends, or phrases like 'my stats', 'show rating', 'profile info', 'compare with [username]', 'who has higher rating', or 'user leaderboard'.",
     side_effects="Makes network requests to the Codeforces API. Response time depends on number of users requested (typically 1-3 seconds for multiple users)."
 )
@@ -121,7 +121,7 @@ async def get_codeforces_user_stats(
 
 # --- TOOL: Real Problem Recommendations ---
 RecommendDesc = RichToolDescription(
-    description="Intelligently recommends UNSOLVED Codeforces problems tailored to a user's skill level. Analyzes the user's solved problem history to exclude already completed problems and suggests problems within a specified rating range. Automatically determines appropriate difficulty based on user's current rating if no range is specified. Uses smart filtering to ensure recommendations are challenging but achievable.",
+    description="Recommends unsolved Codeforces problems for your skill level. Filters by rating and excludes solved problems.",
     use_when="User seeks practice problems, skill improvement, or phrases like 'what should I solve', 'recommend problems', 'practice suggestions', 'problems for my rating', 'give me something to solve', 'I need practice', or 'find problems for [rating] level'.",
     side_effects="Makes multiple network requests: fetches user's solved problems history (can be slow for users with many submissions), retrieves current problemset data, and performs filtering algorithms. Total response time typically 3-7 seconds."
 )
@@ -170,7 +170,7 @@ async def recommend_problems(
 
 # --- TOOL: Get Recently Solved Problems ---
 SolvedDesc = RichToolDescription(
-    description="Displays a chronologically ordered list of the most recently solved (AC - Accepted) problems for a Codeforces user. Shows problem names, ratings, solve dates, and direct links to problems. Automatically deduplicates multiple submissions of the same problem to show only unique solves. Perfect for tracking recent activity and progress.",
+    description="Shows a list of recently solved Codeforces problems with names, ratings, dates, and links.",
     use_when="User wants to review recent activity, track progress, or uses phrases like 'recent solves', 'what did I solve lately', 'my activity', 'recent problems', 'last solved', 'show my progress', 'what I solved today/yesterday', or 'stalk [username]'.",
     side_effects="Makes a network request to fetch user's submission history (up to 100 recent submissions). Processing time depends on user's submission volume, typically 1-3 seconds."
 )
@@ -212,7 +212,7 @@ async def get_solved_problems(
 
 # --- TOOL: Get Rating Changes ---
 RatingChangesDesc = RichToolDescription(
-    description="Displays detailed rating progression from recent Codeforces contests including contest names, user ranking, old rating, new rating, and rating delta (+/-). Shows performance trends and helps identify improvement patterns. Includes direct links to contest pages for detailed review.",
+    description="Shows rating changes from recent Codeforces contests: contest name, rank, old/new rating, delta, and links.",
     use_when="User wants to analyze contest performance, track rating progression, or uses phrases like 'rating changes', 'contest history', 'my performance', 'how did I do', 'recent contests', 'rating graph data', 'show deltas', or 'contest results'.",
     side_effects="Makes a network request to fetch user's contest participation history and rating changes. Response time typically 1-2 seconds."
 )
@@ -245,7 +245,7 @@ async def get_rating_changes(
 
 # --- TOOL: Get Solved Problems Histogram ---
 HistogramDesc = RichToolDescription(
-    description="Generates a visual ASCII histogram showing the distribution of solved problems across different rating ranges. Reveals user's strengths (rating ranges with many solves) and weaknesses (rating gaps). Uses configurable bin sizes to customize granularity of analysis. Essential for identifying skill gaps and planning focused practice.",
+    description="Shows an ASCII histogram of solved problems by rating range. Reveals strengths and gaps.",
     use_when="User wants to analyze their problem-solving distribution, identify weak areas, or uses phrases like 'histogram', 'rating distribution', 'breakdown of solved problems', 'show my strengths', 'where are my gaps', 'problem distribution', or 'rating analysis'.",
     side_effects="Makes a network request to fetch extensive user submission history (up to 5000 submissions for comprehensive analysis). Processing time varies with user's submission count, typically 2-5 seconds."
 )
@@ -294,7 +294,7 @@ async def get_solved_rating_histogram(
 
 # --- TOOL: Compare Users ---
 ComparisonDesc = RichToolDescription(
-    description="Performs comprehensive comparison between multiple Codeforces users with detailed metrics including ratings, contest performance, activity levels, and improvement trends. Handles edge cases like invalid handles, inactive users, or API failures gracefully with clear error messages.",
+    description="Compares multiple Codeforces users: ratings, contests, activity, and improvement trends.",
     use_when="User wants to compare multiple competitive programmers, create leaderboards, analyze relative performance, or uses phrases like 'compare us', 'compare me with [name]', 'who is better', 'leaderboard between friends', 'rank us', 'performance comparison', 'who has better stats', 'how do I stack up', 'compare handles', 'user vs user', 'show comparison', 'analyze together', 'who's winning', 'rate comparison', 'contest comparison', 'skill comparison', 'check standings', 'measure against', 'benchmark users', 'head to head', 'versus analysis', or any request involving multiple usernames/handles for comparison purposes.",
     side_effects="Makes multiple API calls to gather comprehensive data for all users. Response time scales with number of users (3-8 seconds for 3 users). Handles API failures and missing data gracefully."
 )
@@ -397,7 +397,7 @@ async def compare_codeforces_users(
 
 # --- TOOL: Show Bot Capabilities ---
 CapabilitiesDesc = RichToolDescription(
-    description="Displays a comprehensive overview of the competitive programming assistant's capabilities, available commands, and example usage patterns. Perfect for new users or when someone needs a refresher on what the bot can do.",
+    description="Shows an overview of bot capabilities, commands, and example usage.",
     use_when="User sends basic greetings or requests help, such as 'hi', 'hello', 'help', 'what can you do', 'commands', 'features', 'capabilities', 'how to use', or any general inquiry about bot functionality.",
     side_effects="No API calls - displays static information about available features and tools."
 )
@@ -445,7 +445,7 @@ Just ask me anything about Codeforces analysis - I'm here to help you improve! ð
 # --- TOOL: Generate Profile Card ---
 
 ProfileCardDesc = RichToolDescription(
-    description="Generates a visually appealing Codeforces profile card showing key stats, rating, and achievements.",
+    description="Generates a Codeforces profile card with stats, rating, and achievements.",
     use_when="User asks to 'generate profile card', 'make profile image', 'create profile snippet', or 'share my profile'.",
     side_effects="Makes network requests to Codeforces API and generates a profile card image."
 )
@@ -618,7 +618,7 @@ async def generate_profile_card(
 # --- TOOL: Generate Achievement Card ---
 
 AchievementCardDesc = RichToolDescription(
-    description="Creates a special achievement card for milestones like rating increases, problem solving streaks, or rank promotions.",
+    description="Creates an achievement card for milestones like rating, streaks, or rank promotions.",
     use_when="User asks to 'celebrate achievement', 'milestone card', 'rank promotion card', or 'achievement image'.",
     side_effects="Makes network requests to Codeforces API and generates an achievement celebration image."
 )
@@ -754,7 +754,7 @@ async def generate_achievement_card(
 # --- TOOL: Generate Comparison Card ---
 
 ComparisonCardDesc = RichToolDescription(
-    description="Creates a side-by-side comparison card for multiple Codeforces users showing their stats and ratings.",
+    description="Creates a comparison card for multiple Codeforces users with stats and ratings.",
     use_when="User asks to 'compare profiles', 'versus card', 'comparison image', or 'compare with friend'.",
     side_effects="Makes network requests to Codeforces API for multiple users and generates a comparison image."
 )
